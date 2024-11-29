@@ -33,7 +33,7 @@ const LearnWord = () => {
                 const learnedAtDate = new Date(item.learned_at);
 
                 // keyによって異なる日数を加算
-                let targetDate = new Date(learnedAtDate);
+                const targetDate = new Date(learnedAtDate);
                 if (key === "tomorrow") {
                   targetDate.setDate(targetDate.getDate() + 1); // 翌日
                 } else if (key === "in_two_days") {
