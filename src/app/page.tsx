@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { Data } from "./types";
 import { supabase } from "./supabase";
@@ -10,8 +10,10 @@ const WordQuiz = () => {
   const [learnedData, setLearnedData] = useState<Data[]>([]);
   const [firstData, setFirstData] = useState<Data>();
   const [clicked, setClicked] = useState(false);
+  const [wordLimit, setWordLimit] = useState(10); // 初期値を10に設定
 
   useEffect(() => {
+    sessionStorage.setItem("wordLimit", wordLimit.toString());
     const getData = async () => {
       const { data } = await supabase.from("wordsList").select("*");
       if (data) {
@@ -30,7 +32,10 @@ const WordQuiz = () => {
           const learnedAtDate = learnedAt.toISOString().split("T")[0]; // YYYY-MM-DD 形式
           return learnedAtDate === today; // 今日の日付と比較
         });
-
+        todayLearning.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
         setLearnedData(todayLearning); // 今日の学習データをセット
 
         const selectedFields = data.map((item) => {
@@ -84,11 +89,6 @@ const WordQuiz = () => {
           return hasTrueField || hasAllFalseFields;
         });
 
-        displayData?.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-
         setData(displayData);
       }
     };
@@ -96,16 +96,24 @@ const WordQuiz = () => {
   }, []);
 
   useEffect(() => {
-    if (data.length > 0) setFirstData(data[0]);
-    sessionStorage.setItem("data", JSON.stringify(data));
-  }, [data]);
-
-  useEffect(() => {
     if (data.length === 0) {
       setFirstData(learnedData[0]);
+      sessionStorage.setItem("finish", "true");
+    } else {
+      sessionStorage.setItem("finish", "false");
+      setFirstData(data[0]);
     }
-    sessionStorage.setItem("learnedData", JSON.stringify(learnedData));
-  }, [learnedData]);
+    if (learnedData.length >= wordLimit) {
+      sessionStorage.setItem("finish", "true");
+      setFirstData(learnedData[0]);
+    }
+  }, [data, learnedData, wordLimit]);
+
+  const handleWordLimitChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const value = Number(event.target.value); // 選択された値を数値に変換
+    setWordLimit(value); // 状態を更新
+    sessionStorage.setItem("wordLimit", value.toString()); // セッションストレージに保存
+  };
 
   return (
     <main className="flex flex-col items-center fullscreen w-screen h-screen bg-blue-200 py-8">
@@ -116,18 +124,34 @@ const WordQuiz = () => {
         リスト作成
       </Link>
 
-      <section className="w-full h-full ">
-        <div className="mt-6 md:mt-10 flex justify-between items-center">
-          <h1 className="my-2 ml-6 md:ml-60 text-2xl md:text-4xl font-bold">
-            最新のリスト
-          </h1>
+      <section className="w-full h-full flex flex-col items-center">
+        <div className="mt-6 md:mt-10 flex space-x-4 sm:space-x-10 md:space-x-20 items-center">
           <Link
             href="/wordQuiz/learnWord"
-            className="mr-10 md:mr-60 text-2xl md:text-4xl font-bold bg-green-400 text-white px-6 md:px-12 py-2 rounded-2xl"
+            className="text-xl sm:text-3xl md:text-4xl font-bold bg-green-400 text-white px-6 md:px-12 py-2 rounded-2xl"
           >
             学習
           </Link>
-          <Link href="/wordQuiz/speech"></Link>
+          {/* トグル */}
+          <div>
+            <label
+              htmlFor="word-limit"
+              className="mr-4 text-xl sm:text-3xl md:text-4xl font-bold"
+            >
+              単語数
+            </label>
+            <select
+              id="word-limit"
+              value={wordLimit}
+              onChange={handleWordLimitChange}
+              className="text-xl md:text-2xl font-bold bg-gray-200 px-4 py-2 rounded-md"
+            >
+              <option value={10}>10</option>
+              <option value={30}>30</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
         </div>
         <div
           onClick={() => setClicked(!clicked)}

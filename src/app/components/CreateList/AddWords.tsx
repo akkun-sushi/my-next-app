@@ -25,6 +25,7 @@ const AddWord = (props: PropsForComponent) => {
         inputRef.current.focus();
       }
       props.setIsAdding(false);
+      sessionStorage.setItem("finish", "false");
     }
   };
 
