@@ -1,8 +1,8 @@
 "use client";
 
 import React, { FormEvent, useRef, useState } from "react";
-import { Insert } from "@/app/api/route";
-import { PropsForComponent } from "@/app/api/types";
+import { PropsForComponent } from "@/app/types";
+import { supabase } from "@/app/supabase";
 
 const AddWord = (props: PropsForComponent) => {
   const [term, setTerm] = useState("");
@@ -18,7 +18,7 @@ const AddWord = (props: PropsForComponent) => {
     //編集中または削除中は追加不可
     if (isEditing === "NULL" && isDeleting === "NULL") {
       props.setIsAdding(true);
-      await Insert(term, meaning);
+      await supabase.from("wordsList").insert([{ term, meaning }]).select();
       setTerm("");
       setMeaning("");
       if (inputRef.current) {

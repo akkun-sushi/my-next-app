@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { GetAll } from "./api/route";
-import { Data } from "./api/types";
+import { Data } from "./types";
+import { supabase } from "./supabase";
 
 const WordQuiz = () => {
   const [data, setData] = useState<Data[]>([]);
@@ -22,7 +22,7 @@ const WordQuiz = () => {
   //データ取得
   useEffect(() => {
     const getAll = async () => {
-      const data = await GetAll();
+      const { data } = await supabase.from("wordsList").select("*");
       setData(data || []);
       setFirstData(data?.[data?.length - 1]);
     };

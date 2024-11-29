@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Data, IsDeleting, IsEditing, SortType } from "@/app/api/types";
+import { Data, IsDeleting, IsEditing, SortType } from "@/app/types";
 import Link from "next/link";
 import AddWord from "@/app/components/wordsQuiz/AddWords";
 import SortWord from "@/app/components/wordsQuiz/SortWord";

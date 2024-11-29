@@ -1,5 +1,5 @@
-import { GetAll } from "@/app/api/route";
-import { PropsForComponent, SortType } from "@/app/api/types";
+import { PropsForComponent, SortType } from "@/app/types";
+import { supabase } from "@/app/supabase";
 import React, { ChangeEvent, useEffect } from "react";
 
 const SortWord = (props: PropsForComponent) => {
@@ -8,7 +8,7 @@ const SortWord = (props: PropsForComponent) => {
   useEffect(() => {
     //全データ取得
     const getAll = async () => {
-      const data = await GetAll();
+      const { data } = await supabase.from("wordsList").select("*");
       switch (sortType) {
         case "CREATION_ASC":
           data?.sort(

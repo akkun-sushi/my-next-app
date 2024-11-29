@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { WordCardProps } from "@/app/api/types";
-import { Delete, Update } from "@/app/api/route";
+import { WordCardProps } from "@/app/types";
+import { supabase } from "@/app/supabase";
 
 const WordCard = ({
   id,
@@ -13,7 +13,6 @@ const WordCard = ({
   isDeleting,
   setIsDeleting,
 }: WordCardProps) => {
-
   //編集時に使用
   const [term, setTerm] = useState(initialTerm);
   const [meaning, setMeaning] = useState(initialMeaning);
@@ -22,22 +21,33 @@ const WordCard = ({
   const [targetId, setTargetId] = useState("");
 
   useEffect(() => {
-    //編集完了
-    if (isEditing === "FINISH") {
-      Update(id, term, meaning);
-      setIsEditing("NULL");
-    }
+    const updateData = async () => {
+      //編集完了
+      if (isEditing === "FINISH") {
+        await supabase
+          .from("wordsList")
+          .update({ term, meaning })
+          .eq("id", id)
+          .select();
+        setIsEditing("NULL");
+      }
+    };
+
+    updateData();
 
     //削除項目追加
     setTargetId(clicked ? id : "");
-
-    //削除完了
-    if (isDeleting === "FINISH") {
-      if (targetId !== "") {
-        Delete(targetId);
+    const deleteData = async () => {
+      //削除完了
+      if (isDeleting === "FINISH") {
+        if (targetId !== "") {
+          await supabase.from("wordsList").delete().eq("id", id);
+        }
+        setIsDeleting("NULL");
       }
-      setIsDeleting("NULL");
-    }
+    };
+
+    deleteData();
   }, [
     id,
     term,

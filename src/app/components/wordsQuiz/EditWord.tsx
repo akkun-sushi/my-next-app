@@ -1,4 +1,4 @@
-import { PropsForComponent } from "@/app/api/types";
+import { PropsForComponent } from "@/app/types";
 import React from "react";
 
 const EditWord = (props: PropsForComponent) => {
@@ -7,7 +7,7 @@ const EditWord = (props: PropsForComponent) => {
   return (
     <button
       onClick={() => {
-        if (data?.length > 0 && isDeleting === "NULL" ) {
+        if (data?.length > 0 && isDeleting === "NULL") {
           switch (isEditing) {
             case "NULL":
               setIsEditing("EDIT");

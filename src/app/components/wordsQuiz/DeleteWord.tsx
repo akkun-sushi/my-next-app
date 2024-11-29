@@ -1,4 +1,4 @@
-import { PropsForComponent } from "@/app/api/types";
+import { PropsForComponent } from "@/app/types";
 import React from "react";
 
 const DeleteWord = (props: PropsForComponent) => {

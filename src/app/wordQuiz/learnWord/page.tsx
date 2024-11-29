@@ -1,8 +1,7 @@
 "use client"; // Next.jsでクライアントサイドの処理を有効にする宣言
 
 // 必要なモジュールやコンポーネントをインポート
-import { GetAll } from "@/app/api/route"; // データ取得用API関数
-import { Data } from "@/app/api/types"; // データ型の定義
+import { Data } from "@/app/types"; // データ型の定義
 import { supabase } from "@/app/supabase";
 import Link from "next/link"; // ページ間リンク用
 import React, { useEffect, useState } from "react"; // Reactフックを使用
@@ -20,7 +19,7 @@ const LearnWord = () => {
   // データ取得処理（初回レンダリング時のみ実行）
   useEffect(() => {
     const getAll = async () => {
-      const data = await GetAll(); // データ取得
+      const { data } = await supabase.from("wordsList").select("*");
       if (data) {
         const selectedFields = data.map((item) => {
           const typedItem = item as Data;
