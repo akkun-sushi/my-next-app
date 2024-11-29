@@ -77,10 +77,22 @@ const LearnWord = () => {
                 const targetDate = new Date(learnedAtDate);
                 if (key === "tomorrow") {
                   targetDate.setDate(targetDate.getDate() + 1); // 翌日
-                } else if (key === "in_two_days") {
+                } else if (key === "two_days_later") {
                   targetDate.setDate(targetDate.getDate() + 2); // 2日後
-                } else if (key === "in_three_days") {
+                } else if (key === "three_days_later") {
                   targetDate.setDate(targetDate.getDate() + 3); // 3日後
+                } else if (key === "one_week_later") {
+                  targetDate.setDate(targetDate.getDate() + 7); // 1週間後
+                } else if (key === "two_weeks_later") {
+                  targetDate.setDate(targetDate.getDate() + 14); // 2週間後
+                } else if (key === "one_month_later") {
+                  targetDate.setMonth(targetDate.getMonth() + 1); // 1ヶ月後
+                } else if (key === "three_months_later") {
+                  targetDate.setMonth(targetDate.getMonth() + 3); // 3ヶ月後
+                } else if (key === "six_months_later") {
+                  targetDate.setMonth(targetDate.getMonth() + 6); // 6ヶ月後
+                } else if (key === "do_not_review") {
+                  // 出題しない場合は何も変更しない
                 }
 
                 // 新しい日付を"YYYY-MM-DD"形式で取得
@@ -98,23 +110,127 @@ const LearnWord = () => {
         }) as Data[];
 
         const displayData: Data[] = selectedFields.filter((item) => {
-          // 1. itemの中でvalueがtrueのフィールドを探す
-          const hasTrueField = Object.values(item).includes(true);
+          // 各フィールドがtrueかどうかを判定
+          const tomorrowIsTrue =
+            item.hasOwnProperty("tomorrow") && item.tomorrow === true;
+          const twoDaysLaterIsTrue =
+            item.hasOwnProperty("two_days_later") &&
+            item.two_days_later === true;
+          const threeDaysLaterIsTrue =
+            item.hasOwnProperty("three_days_later") &&
+            item.three_days_later === true;
+          const oneWeekLaterIsTrue =
+            item.hasOwnProperty("one_week_later") &&
+            item.one_week_later === true;
+          const twoWeeksLaterIsTrue =
+            item.hasOwnProperty("two_weeks_later") &&
+            item.two_weeks_later === true;
+          const oneMonthLaterIsTrue =
+            item.hasOwnProperty("one_month_later") &&
+            item.one_month_later === true;
+          const threeMonthsLaterIsTrue =
+            item.hasOwnProperty("three_months_later") &&
+            item.three_months_later === true;
+          const sixMonthsLaterIsTrue =
+            item.hasOwnProperty("six_months_later") &&
+            item.six_months_later === true;
 
-          // 2. itemに"tomorrow"や"in_two_days", "in_three_days"がすべてfalseであることをチェック
+          // 各フィールドがfalseかどうかを判定
+          const tomorrowIsFalse =
+            item.hasOwnProperty("tomorrow") && item.tomorrow === false;
+          const twoDaysLaterIsFalse =
+            item.hasOwnProperty("two_days_later") &&
+            item.two_days_later === false;
+          const threeDaysLaterIsFalse =
+            item.hasOwnProperty("three_days_later") &&
+            item.three_days_later === false;
+          const oneWeekLaterIsFalse =
+            item.hasOwnProperty("one_week_later") &&
+            item.one_week_later === false;
+          const twoWeeksLaterIsFalse =
+            item.hasOwnProperty("two_weeks_later") &&
+            item.two_weeks_later === false;
+          const oneMonthLaterIsFalse =
+            item.hasOwnProperty("one_month_later") &&
+            item.one_month_later === false;
+          const threeMonthsLaterIsFalse =
+            item.hasOwnProperty("three_months_later") &&
+            item.three_months_later === false;
+          const sixMonthsLaterIsFalse =
+            item.hasOwnProperty("six_months_later") &&
+            item.six_months_later === false;
+          const doNotReviewIsFalse =
+            item.hasOwnProperty("do_not_review") &&
+            item.do_not_review === false;
+
+          // 全てのフィールドがfalseの場合
           const hasAllFalseFields =
-            item.hasOwnProperty("tomorrow") &&
-            item.tomorrow === false &&
-            item.hasOwnProperty("in_two_days") &&
-            item.in_two_days === false &&
-            item.hasOwnProperty("in_three_days") &&
-            item.in_three_days === false;
+            tomorrowIsFalse &&
+            twoDaysLaterIsFalse &&
+            threeDaysLaterIsFalse &&
+            oneWeekLaterIsFalse &&
+            twoWeeksLaterIsFalse &&
+            oneMonthLaterIsFalse &&
+            threeMonthsLaterIsFalse &&
+            sixMonthsLaterIsFalse &&
+            doNotReviewIsFalse;
 
-          // 条件を満たす場合はそのitemを返す
-          return hasTrueField || hasAllFalseFields;
+          // 条件を満たす場合はそのitemを返す（順番を逆に変更）
+          return (
+            sixMonthsLaterIsTrue ||
+            threeMonthsLaterIsTrue ||
+            oneMonthLaterIsTrue ||
+            twoWeeksLaterIsTrue ||
+            oneWeekLaterIsTrue ||
+            threeDaysLaterIsTrue ||
+            twoDaysLaterIsTrue ||
+            tomorrowIsTrue ||
+            hasAllFalseFields
+          );
         });
 
-        const limitedData = displayData.slice(0, Number(wordLimit));
+        interface ReviewData {
+          tomorrow: boolean;
+          two_days_later: boolean;
+          three_days_later: boolean;
+          one_week_later: boolean;
+          two_weeks_later: boolean;
+          one_month_later: boolean;
+          three_months_later: boolean;
+          six_months_later: boolean;
+          do_not_review: boolean;
+        }
+        // displayDataのソート
+        const sortedDisplayData = displayData.sort(
+          (a: ReviewData, b: ReviewData) => {
+            // フィールドがtrueの順番を月日が大きいものから並べ替える
+            const priority: (keyof ReviewData)[] = [
+              "six_months_later",
+              "three_months_later",
+              "one_month_later",
+              "two_weeks_later",
+              "one_week_later",
+              "three_days_later",
+              "two_days_later",
+              "tomorrow",
+            ];
+
+            // aとbのそれぞれがtrueであるフィールドをチェック
+            for (const field of priority) {
+              const aValue = a[field] === true;
+              const bValue = b[field] === true;
+
+              // aがtrueでbがfalseならaを先に、bがtrueでaがfalseならbを先に
+              if (aValue !== bValue) {
+                return aValue ? -1 : 1;
+              }
+            }
+
+            // もしどちらもtrueのフィールドがない場合はそのまま
+            return 0;
+          }
+        );
+        const limitedData = sortedDisplayData.slice(0, Number(wordLimit));
         setData(limitedData); // wordLimitに従ったデータをセット
       }
     };
@@ -201,27 +317,44 @@ const LearnWord = () => {
         if (!review) {
           const reviewDates = [
             { name: "tomorrow", value: data[index].tomorrow },
-            { name: "in_two_days", value: data[index].in_two_days },
-            { name: "in_three_days", value: data[index].in_three_days },
+            { name: "in_two_days", value: data[index].two_days_later },
+            { name: "in_three_days", value: data[index].three_days_later },
+            { name: "in_one_week", value: data[index].one_week_later },
+            { name: "in_two_weeks", value: data[index].two_weeks_later },
+            { name: "in_one_month", value: data[index].one_month_later },
+            { name: "in_three_months", value: data[index].three_months_later },
+            { name: "in_six_months", value: data[index].six_months_later },
+            { name: "do_not_review", value: data[index].do_not_review },
           ];
 
+          // 値がtrueの最初のインデックスを探す
           const reviewDateIndex = reviewDates.findIndex(
             (item) => item.value === true
           );
+
+          // もしtrueのフィールドがなければ、最初のフィールド（tomorrow）をtrueに設定
           if (reviewDateIndex === -1) {
             reviewDates[0].value = true;
           } else {
-            if (reviewDateIndex !== 2) {
-              reviewDates[reviewDateIndex].value = false;
-              reviewDates[reviewDateIndex + 1].value = true;
+            // trueに設定されたフィールドが最後でない場合、次のフィールドにtrueを設定
+            if (reviewDateIndex !== reviewDates.length - 1) {
+              reviewDates[reviewDateIndex].value = false; // 現在のtrueフィールドをfalseにする
+              reviewDates[reviewDateIndex + 1].value = true; // 次のフィールドをtrueに設定
             }
           }
 
+          // updateFieldsを作成
           const updateFields = {
             learned_at: today, // learned_at を更新
             tomorrow: reviewDates[0].value,
-            in_two_days: reviewDates[1].value,
-            in_three_days: reviewDates[2].value,
+            two_days_later: reviewDates[1].value,
+            three_days_later: reviewDates[2].value,
+            one_week_later: reviewDates[3].value,
+            two_weeks_later: reviewDates[4].value,
+            one_month_later: reviewDates[5].value,
+            three_months_later: reviewDates[6].value,
+            six_months_later: reviewDates[7].value,
+            do_not_review: reviewDates[8].value,
           };
 
           // Supabaseにデータを保存
@@ -266,8 +399,14 @@ const LearnWord = () => {
           const updateFields = {
             learned_at: today, // learned_at を更新
             tomorrow: true,
-            in_two_days: false,
-            in_three_days: false,
+            two_days_later: false,
+            three_days_later: false,
+            one_week_later: false,
+            two_weeks_later: false,
+            one_month_later: false,
+            three_months_later: false,
+            six_months_later: false,
+            do_not_review: false,
           };
 
           // Supabaseにデータを保存
