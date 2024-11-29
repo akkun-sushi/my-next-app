@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import { Data, IsDeleting, IsEditing, SortType } from "@/app/types";
 import Link from "next/link";
-import AddWord from "@/app/components/wordsQuiz/AddWords";
-import SortWord from "@/app/components/wordsQuiz/SortWord";
-import EditWord from "@/app/components/wordsQuiz/EditWord";
-import DeleteWord from "@/app/components/wordsQuiz/DeleteWord";
-import WordCard from "@/app/components/wordsQuiz/WordCard";
+import AddWord from "@/app/components/CreateList/AddWords";
+import SortWord from "@/app/components/CreateList/SortWord";
+import EditWord from "@/app/components/CreateList/EditWord";
+import DeleteWord from "@/app/components/CreateList/DeleteWord";
+import WordCard from "@/app/components/CreateList/WordCard";
 
 const CreateList = () => {
   const [data, setData] = useState<Data[]>([]);
