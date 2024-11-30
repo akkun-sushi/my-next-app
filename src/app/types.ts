@@ -6,15 +6,7 @@ export interface Data {
   meaning: string;
   created_at: string;
   learned_at: string;
-  tomorrow: boolean;
-  two_days_later: boolean;
-  three_days_later: boolean;
-  one_week_later: boolean;
-  two_weeks_later: boolean;
-  one_month_later: boolean;
-  three_months_later: boolean;
-  six_months_later: boolean;
-  do_not_review: boolean;
+  reviewed_at: string;
 }
 
 export type SortType =
