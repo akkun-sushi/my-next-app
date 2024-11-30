@@ -11,6 +11,7 @@ const WordQuiz = () => {
   const [firstData, setFirstData] = useState<Data>();
   const [clicked, setClicked] = useState(false);
   const [wordLimit, setWordLimit] = useState(10); // 初期値を10に設定
+  const [selectedLanguage, setSelectedLanguage] = useState("en"); // デフォルトを英語に設定
 
   useEffect(() => {
     sessionStorage.setItem("wordLimit", wordLimit.toString());
@@ -231,6 +232,12 @@ const WordQuiz = () => {
     sessionStorage.setItem("wordLimit", value.toString()); // セッションストレージに保存
   };
 
+  const handleLanguageChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedLanguage(value);
+    sessionStorage.setItem("language", value);
+  };
+
   return (
     <main className="flex flex-col items-center fullscreen w-screen h-screen bg-blue-200 py-8">
       <Link
@@ -240,19 +247,19 @@ const WordQuiz = () => {
         リスト作成
       </Link>
 
-      <section className="w-full h-full flex flex-col items-center">
-        <div className="mt-6 md:mt-10 flex space-x-4 sm:space-x-10 md:space-x-20 items-center">
+      <section className="w-full h-full flex flex-col">
+        <div className="mt-6 md:mt-10 w-full flex space-x-4 sm:space-x-8 md:space-x-14 justify-center">
           <Link
             href="/wordQuiz/learnWord"
-            className="text-xl sm:text-3xl md:text-4xl font-bold bg-green-400 text-white px-6 md:px-12 py-2 rounded-2xl"
+            className="text-xl sm:text-3xl md:text-4xl font-bold bg-green-400 text-white px-4 sm:px-6 md:px-12 sm:py-2 rounded-2xl flex items-center"
           >
             学習
           </Link>
-          {/* トグル */}
-          <div>
+          {/* 単語数トグル */}
+          <div className="flex flex-col sm:flex-row items-center">
             <label
               htmlFor="word-limit"
-              className="mr-4 text-xl sm:text-3xl md:text-4xl font-bold"
+              className="mr-4 text-xl sm:text-2xl md:text-4xl font-bold"
             >
               単語数
             </label>
@@ -260,7 +267,7 @@ const WordQuiz = () => {
               id="word-limit"
               value={wordLimit}
               onChange={handleWordLimitChange}
-              className="text-xl md:text-2xl font-bold bg-gray-200 px-4 py-2 rounded-md"
+              className="text-lg md:text-xl font-bold bg-gray-200 px-4 py-2 rounded-md"
             >
               <option value={10}>10</option>
               <option value={30}>30</option>
@@ -268,10 +275,31 @@ const WordQuiz = () => {
               <option value={100}>100</option>
             </select>
           </div>
+          {/* 言語トグル */}
+          <div className="flex flex-col sm:flex-row items-center">
+            <label
+              htmlFor="language-select"
+              className="mr-4 text-xl sm:text-2xl md:text-4xl font-bold"
+            >
+              言語
+            </label>
+            <select
+              id="language-select"
+              value={selectedLanguage} // 現在の言語を反映
+              onChange={handleLanguageChange} // 言語変更時に呼び出す関数
+              className="text-lg md:text-xl font-bold bg-gray-200 px-4 py-2 rounded-md"
+            >
+              <option value="en-US">英語</option>
+              <option value="es-ES">スペイン語</option>
+              <option value="fr-FR">フランス語</option>
+              <option value="de-DE">ドイツ語</option>
+              <option value="ru-RU">ロシア語</option>
+            </select>
+          </div>
         </div>
         <div
           onClick={() => setClicked(!clicked)}
-          className="w-4/5 md:w-3/5 h-1/4 md:h-1/2 bg-white rounded-2xl m-auto mt-4 md:mt-6 px-3 py-5"
+          className="w-4/5 md:w-3/4 lg:w-3/5 h-1/4 md:h-1/2 bg-white rounded-2xl m-auto mt-4 md:mt-6 px-3 py-5"
         >
           <div className="h-4/5 flex items-center justify-center">
             <h1 className="text-4xl md:text-6xl font-bold break-words">
