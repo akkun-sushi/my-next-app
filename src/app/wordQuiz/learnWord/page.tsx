@@ -12,6 +12,7 @@ const LearnWord = () => {
   const [data, setData] = useState<Data[]>([]); // 単語データを保持
   const [learnedData, setLearnedData] = useState<Data[]>([]);
   const [wordLimit, setWordLimit] = useState<string | null>(null); // 初期値を10に設定
+  const [language, setLanguage] = useState<string | null>(null);
   const [finish, setfinish] = useState(false);
   const [review, setReview] = useState<boolean>(false);
   const [index, setIndex] = useState<number>(0); // 現在の単語のインデックス
@@ -37,6 +38,8 @@ const LearnWord = () => {
     const storedFinish = sessionStorage.getItem("finish");
     if (storedFinish === "true") setfinish(true);
     setWordLimit(sessionStorage.getItem("wordLimit"));
+    setLanguage(sessionStorage.getItem("language"));
+
     const getData = async () => {
       const { data } = await supabase.from("wordsList").select("*");
       if (data) {
@@ -299,7 +302,9 @@ const LearnWord = () => {
     if (!SpeakerIsClicked) {
       setSpeakerIsClicked(true);
       const utterance = new SpeechSynthesisUtterance(term);
-      utterance.lang = "en-US"; //言語設定
+      if (language !== null) {
+        utterance.lang = language; //言語設定
+      }
 
       utterance.onend = () => {
         setSpeakerIsClicked(false);
