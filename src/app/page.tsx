@@ -36,10 +36,6 @@ const WordQuiz = () => {
           return;
         }
 
-        todayLearning.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
         setlearningData(todayLearning); // 今日の学習データをセット
 
         const newData: Data[] = [];

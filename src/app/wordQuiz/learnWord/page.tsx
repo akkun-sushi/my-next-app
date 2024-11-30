@@ -21,6 +21,31 @@ const LearnWord = () => {
   const [reverse, setReverse] = useState<boolean>(false); // 表示を反転するフラグ
   const [speakerIsClicked, setSpeakerIsClicked] = useState<boolean>(false);
   const [cardColor, setCardColor] = useState<string>(""); // 「わかった」「わからない」ボタンが押されたかどうかを管理する状態
+  const [isRandom, setIsRandom] = useState(false);
+
+  // 正解音を再生して5秒後に停止する関数
+  const playSuccessSound = () => {
+    const audio = new Audio("/success.mp3"); // publicフォルダ内の音声ファイル
+    audio.play(); // 音声を再生
+
+    // 5秒後に音声を停止する
+    setTimeout(() => {
+      audio.pause(); // 音声を停止
+      audio.currentTime = 0; // 再生位置を先頭に戻す
+    }, 5000); // 5000ms = 5秒
+  };
+
+  // 不正解音を再生して5秒後に停止する関数
+  const playFailureSound = () => {
+    const audio = new Audio("/failure.mp3"); // publicフォルダ内の音声ファイル
+    audio.play(); // 音声を再生
+
+    // 5秒後に音声を停止する
+    setTimeout(() => {
+      audio.pause(); // 音声を停止
+      audio.currentTime = 0; // 再生位置を先頭に戻す
+    }, 5000); // 5000ms = 5秒
+  };
 
   useEffect(() => {
     // sessionStorageから値を取得
@@ -133,6 +158,7 @@ const LearnWord = () => {
 
   const handleGotIt = () => {
     setCardColor("green");
+    playSuccessSound();
 
     setTimeout(async () => {
       const today = GetJapanTime(); // 日本時間（年月日）を取得
@@ -210,6 +236,8 @@ const LearnWord = () => {
 
   const handleNotGotIt = () => {
     setCardColor("red");
+    playFailureSound();
+
     setTimeout(async () => {
       const today = GetJapanTime(); // 日本時間（年月日）を取得
       if (data) {
@@ -267,10 +295,12 @@ const LearnWord = () => {
       console.error("Error fetching users:", error);
       return;
     }
-    todayLearning.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+
+    // ランダムに並び替え
+    if (isRandom) {
+      todayLearning.sort(() => Math.random() - 0.5);
+    }
+
     setData(todayLearning); // 今日の学習データをセット
 
     const newData = data.filter((item) => item.learned_at === null);
@@ -300,13 +330,27 @@ const LearnWord = () => {
       <section className="flex flex-col items-center justify-center w-full h-full mt-5 md:mt-10">
         {/* 今日のタスクが終わった場合 */}
         {data.length === 0 && !review && finish ? (
-          // お疲れ様でしたメッセージ
           <div className="flex flex-col items-center">
-            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center mb-16 mt-12 md:mb-28 md:mt-24 text-red-500">
+            {/* 今日のタスクが終わったことを知らせるテキスト */}
+            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center mb-16 mt-12 md:mb-20 md:mt-24 text-red-500">
               今日のタスクは終わりました！
               <br />
               お疲れ様です！
             </h2>
+
+            {/* ランダムボタン */}
+            <button
+              onClick={() => setIsRandom((prev) => !prev)}
+              className={`px-6 py-3 md:px-10 md:py-5 mb-8 text-white text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold rounded-xl shadow-md transition-colors duration-300 ${
+                isRandom
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-gray-500 hover:bg-gray-600"
+              }`}
+            >
+              {isRandom ? "ランダムオン" : "ランダムオフ"}
+            </button>
+
+            {/* 復習ボタン */}
             <button
               onClick={handleReview}
               className="px-6 py-3 md:px-10 md:py-5 bg-blue-500 text-white text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold rounded-xl shadow-md hover:bg-blue-600 transition-colors"
@@ -389,4 +433,4 @@ const LearnWord = () => {
   );
 };
 
-export default LearnWord; // コンポーネントをエクスポート
+export default LearnWord;
