@@ -9,6 +9,19 @@ export interface Data {
   reviewed_at: string;
 }
 
+export interface UserWords extends Data {
+  user_id: string;
+}
+
+export interface MultipleData {
+  learning: UserWords[];
+  unlearn: UserWords[];
+  review: UserWords[];
+  limit: UserWords[];
+}
+
+
+
 export type SortType =
   | "CREATION_ASC"
   | "CREATION_DES"
