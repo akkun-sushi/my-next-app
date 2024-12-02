@@ -1,18 +1,20 @@
 "use client"; // Next.jsでクライアントサイドの処理を有効にする宣言
 
 // 必要なモジュールやコンポーネントをインポート
-import { Data } from "@/app/types"; // データ型の定義
+import { CombinedData, Data } from "@/app/types"; // データ型の定義
 import { supabase } from "@/app/supabase";
 import Link from "next/link"; // ページ間リンク用
 import React, { useEffect, useState } from "react"; // Reactフックを使用
 import { GiSpeaker } from "react-icons/gi";
-import GetJapanTime from "@/app/components/LearnWord/GetJapanTime";
+
+import SpeakerSetting from "@/app/components/LearnWord/SpeakerSetting";
+import { GetJapanDate } from "@/app/components/LearnWord/GetJapanTime";
+import SaveMultipleData from "@/app/components/LearnWord/SaveMultipleData";
 
 const LearnWord = () => {
   // ステートの定義
-  const [data, setData] = useState<Data[]>([]); // 単語データを保持
-  const [newData, setNewData] = useState<Data[]>([]);
-  const [language, setLanguage] = useState<string | null>(null);
+  const [data, setData] = useState<CombinedData[]>([]); // 単語データを保持
+  const [newData, setNewData] = useState<CombinedData[]>([]);
   const [finish, setfinish] = useState(false);
   const [review, setReview] = useState<boolean>(false);
   const [index, setIndex] = useState<number>(0); // 現在の単語のインデックス
@@ -22,6 +24,7 @@ const LearnWord = () => {
   const [speakerIsClicked, setSpeakerIsClicked] = useState<boolean>(false);
   const [cardColor, setCardColor] = useState<string>(""); // 「わかった」「わからない」ボタンが押されたかどうかを管理する状態
   const [isRandom, setIsRandom] = useState(false);
+  const [isAlwaysSpeak, setIsAlwaysSpeak] = useState(false);
 
   // 正解音を再生して5秒後に停止する関数
   const playSuccessSound = () => {
@@ -49,15 +52,15 @@ const LearnWord = () => {
 
   useEffect(() => {
     // sessionStorageから値を取得
-    const storedData = sessionStorage.getItem("data");
-    const storedNewData = sessionStorage.getItem("newData");
-    const storedLanguage = sessionStorage.getItem("language");
+    const storedData = sessionStorage.getItem("limitedData");
+    const storedNewData = sessionStorage.getItem("multipleData");
+    const storedIndex = sessionStorage.getItem("index");
     const storedFinish = sessionStorage.getItem("finish");
 
     // 取得した値があれば状態にセット
     setData(storedData ? JSON.parse(storedData) : []);
-    setNewData(storedNewData ? JSON.parse(storedNewData) : []);
-    setLanguage(storedLanguage);
+    setNewData(storedNewData ? JSON.parse(storedNewData).unlearn : []);
+
     if (storedFinish === "true") setfinish(true);
   }, []);
 
@@ -66,11 +69,11 @@ const LearnWord = () => {
     if (
       newData &&
       data[index] &&
-      newData.find((item) => item.id === data[index].id)
+      newData.find((item) => item.word_id === data[index].word_id) // ここで条件をチェック
     ) {
-      setDisplayNew(true);
+      setDisplayNew(true); // 見つかれば true を設定
     } else {
-      setDisplayNew(false);
+      setDisplayNew(false); // 見つからなければ false を設定
     }
 
     // Dateオブジェクトに変換
@@ -78,7 +81,7 @@ const LearnWord = () => {
 
     // フォーマットを変更して "2024/2/12" 形式に
     const formattedDate = rawDate.toLocaleDateString("ja-JP"); // 日本のローカルフォーマット
-    setCard([data[index]?.term, data[index]?.meaning, formattedDate]); // 現在のインデックスに対応する単語
+    setCard([data[index]?.word, data[index]?.meaning, formattedDate]); // 現在のインデックスに対応する単語
   }, [newData, data, index]); // `data` や `index` が変更されるたびに実行
 
   // キーボード操作によるイベントハンドリング
@@ -137,31 +140,22 @@ const LearnWord = () => {
     // すでに読み上げが開始されていない場合のみ実行
     if (!speakerIsClicked) {
       setSpeakerIsClicked(true); // ボタンがクリックされた状態にする（読み上げ中）
-
-      // 読み上げるテキストを指定
-      const utterance = new SpeechSynthesisUtterance(card[0]);
-
-      // 言語が設定されている場合、その言語に合わせて読み上げを設定
-      if (language !== null) {
-        utterance.lang = language; // 設定された言語を設定
-      }
-
-      // 読み上げ終了時に SpeakerIsClicked を false に戻してボタンを押せるようにする
-      utterance.onend = () => {
-        setSpeakerIsClicked(false); // 読み上げ終了後にボタンを再度クリック可能にする
-      };
-
-      // 読み上げを実行
-      window.speechSynthesis.speak(utterance);
+      SpeakerSetting(card[0], () => setSpeakerIsClicked(false));
     }
   };
+
+  useEffect(() => {
+    if (isAlwaysSpeak) {
+      SpeakerSetting(data[0]?.word);
+    }
+  }, [review]);
 
   const handleGotIt = () => {
     setCardColor("green");
     playSuccessSound();
 
     setTimeout(async () => {
-      const today = GetJapanTime(); // 日本時間（年月日）を取得
+      const today = GetJapanDate(); // 日本時間（年月日）を取得
       if (data) {
         if (!review) {
           const update: { learned_at: string; reviewed_at: string } = {
@@ -203,9 +197,10 @@ const LearnWord = () => {
 
           // Supabaseにデータを保存
           const { data: response, error } = await supabase
-            .from("wordsList")
+            .from("user_words")
             .update(update)
-            .eq("id", data[index].id)
+            .eq("user_id", data[index].user_id)
+            .eq("word_id", data[index].word_id)
             .select();
 
           if (error) {
@@ -213,13 +208,40 @@ const LearnWord = () => {
           } else {
             console.log("Date saved successfully:", response);
           }
+
+          // セッションのデータを更新
+          const storedData = sessionStorage.getItem("data");
+          if (storedData) {
+            const sessionData: CombinedData[] = JSON.parse(storedData);
+
+            // 該当のデータを更新
+            const updatedSessionData = sessionData.map((item) => {
+              if (item.word_id === data[index].word_id) {
+                return {
+                  ...item,
+                  learned_at: update.learned_at,
+                  reviewed_at: update.reviewed_at,
+                };
+              }
+              return item;
+            });
+
+            // セッションに更新後のデータを保存
+            sessionStorage.setItem("data", JSON.stringify(updatedSessionData));
+
+            console.log("Session data updated successfully.");
+          }
         }
+
+        if (isAlwaysSpeak) SpeakerSetting(data[index + 1]?.word);
 
         if (index < data.length - 1) {
           setIndex((prevIndex) => prevIndex + 1);
+          sessionStorage.setItem("index", index.toString());
           setReverse(false); // 表示を元に戻す
         } else if (index === data.length - 1) {
           setIndex(0);
+          sessionStorage.setItem("index", "0");
           setReverse(false);
           setReview(false);
           alert("すべて勉強しました");
@@ -239,7 +261,7 @@ const LearnWord = () => {
     playFailureSound();
 
     setTimeout(async () => {
-      const today = GetJapanTime(); // 日本時間（年月日）を取得
+      const today = GetJapanDate(); // 日本時間（年月日）を取得
       if (data) {
         if (!review) {
           const update: { learned_at: string; reviewed_at: string } = {
@@ -253,9 +275,10 @@ const LearnWord = () => {
 
           // Supabaseにデータを保存
           const { data: response, error } = await supabase
-            .from("wordsList")
+            .from("user_words")
             .update(update)
-            .eq("id", data[index].id)
+            .eq("user_id", data[index].user_id)
+            .eq("word_id", data[index].word_id)
             .select();
 
           if (error) {
@@ -263,13 +286,40 @@ const LearnWord = () => {
           } else {
             console.log("Date saved successfully:", response);
           }
+
+          // セッションのデータを更新
+          const storedData = sessionStorage.getItem("data");
+          if (storedData) {
+            const sessionData: CombinedData[] = JSON.parse(storedData);
+
+            // 該当のデータを更新
+            const updatedSessionData = sessionData.map((item) => {
+              if (item.word_id === data[index].word_id) {
+                return {
+                  ...item,
+                  learned_at: update.learned_at,
+                  reviewed_at: update.reviewed_at,
+                };
+              }
+              return item;
+            });
+
+            // セッションに更新後のデータを保存
+            sessionStorage.setItem("data", JSON.stringify(updatedSessionData));
+
+            console.log("Session data updated successfully.");
+          }
         }
+
+        if (isAlwaysSpeak) SpeakerSetting(data[index + 1]?.word);
 
         if (index < data.length - 1) {
           setIndex((prevIndex) => prevIndex + 1);
+          sessionStorage.setItem("index", index.toString());
           setReverse(false); // 表示を元に戻す
         } else if (index === data.length - 1) {
           setIndex(0);
+          sessionStorage.setItem("index", "0");
           setReverse(false);
           setReview(false);
           alert("すべて勉強しました");
@@ -285,26 +335,27 @@ const LearnWord = () => {
   };
 
   const handleReview = async () => {
-    const today = GetJapanTime();
+    SaveMultipleData();
 
-    const { data: todayLearning, error } = await supabase
-      .from("wordsList") // テーブル名
-      .select("*") // 取得するカラム（`*` は全カラム）
-      .gte("learned_at", today);
-    if (error) {
-      console.error("Error fetching users:", error);
-      return;
+    // sessionStorageから値を取得
+    const storedData = sessionStorage.getItem("multipleData");
+
+    if (storedData) {
+      const data = JSON.parse(storedData).learning;
+
+      // ランダムに並び替え
+      if (isRandom) {
+        data.sort(() => Math.random() - 0.5);
+      }
+
+      // 取得した値があれば状態にセット
+      setData(data);
     }
-
-    // ランダムに並び替え
-    if (isRandom) {
-      todayLearning.sort(() => Math.random() - 0.5);
-    }
-
-    setData(todayLearning); // 今日の学習データをセット
 
     const newData = data.filter((item) => item.learned_at === null);
     setNewData(newData);
+
+    if (isAlwaysSpeak) handleSpeak();
 
     setReview(true);
   };
@@ -315,7 +366,7 @@ const LearnWord = () => {
       <section className="flex w-4/5 items-center justify-between px-4">
         {/* 戻るボタン */}
         <Link
-          href="/"
+          href="/wordQuiz"
           className="text-xl sm:text-2xl md:text-3xl font-bold text-black hover:text-red-500 transition-colors"
         >
           戻る
@@ -386,10 +437,12 @@ const LearnWord = () => {
                 </div>
               )}
               {/* 次回の学習日を左下に表示 */}
-              <div className="absolute bottom-4 left-4 sm:text-lg md:text-xl text-black">
-                次回学習日: {card[2]}
-                {/* nextStudyDate は適切な変数に変更してください */}
-              </div>
+              {!displayNew && (
+                <div className="absolute bottom-4 left-4 sm:text-lg md:text-xl text-black">
+                  次回学習日: {card[2]}
+                  {/* nextStudyDate は適切な変数に変更してください */}
+                </div>
+              )}
               <div
                 onClick={(e) => {
                   e.stopPropagation(); // イベントのバブリングを止める
@@ -401,6 +454,20 @@ const LearnWord = () => {
               >
                 <GiSpeaker />
               </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAlwaysSpeak((prev) => !prev);
+                  if (!isAlwaysSpeak) handleSpeak();
+                }}
+                className={`absolute top-20 right-4 px-4 py-1 rounded-lg shadow-md text-sm text-white font-bold sm:text-base md:text-lg transition-all ${
+                  isAlwaysSpeak
+                    ? "bg-blue-500 hover:bg-blue-600"
+                    : "bg-gray-500 hover:bg-gray-600"
+                }`}
+              >
+                常に
+              </button>
             </div>
 
             <div className="flex w-4/5 md:w-2/3 lg:w-1/2 mt-8 sm:mt-12 md:mt-16 justify-between font-bold text-white text-sm md:text-xl lg:text-2xl mx-auto space-x-6 sm:space-x-10 md:space-x-14 lg:space-x-20">
