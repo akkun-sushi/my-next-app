@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { CombinedData, UserWordsData, WordsData } from "../types";
+import { UserWords } from "../types";
 import { supabase } from "../supabase";
 import { useRouter } from "next/navigation";
-import { GetJapanDate } from "../components/LearnWord/GetJapanTime";
-import SaveMultipleData from "../components/LearnWord/SaveMultipleData";
 
-// ローディング画面のコンポーネント
+//　ローディング画面のコンポーネント
+//　セッションデータにユーザー情報を保存
+//　ローカルデータにユーザーID付き全データを保存
 const Loading = () => {
   const router = useRouter();
 
   // コンポーネントがマウントされたときに実行
   useEffect(() => {
-    // 非同期関数として定義
-    const getUserWords = async () => {
-      // Step 1: 全単語のIDを取得
+    // 非同期関数としてデータの保存処理を定義
+    const saveDataToLocalStorage = async () => {
+      // Step 1: Supabaseから全単語のデータを取得
       const { data: wordsData, error: wordsError } = await supabase
-        .from("words_list")
+        .from("wordsList")
         .select("*");
 
       if (wordsError) {
@@ -25,7 +25,7 @@ const Loading = () => {
         return;
       }
 
-      // Step 2: ユーザー情報を取得
+      // Step 2: Supabaseからユーザー情報を取得
       const { data: userData, error: userError } =
         await supabase.auth.getUser();
 
@@ -37,74 +37,59 @@ const Loading = () => {
       // Step 3: ユーザーが存在する場合に処理を続ける
       if (userData?.user) {
         const user = userData.user;
+        sessionStorage.setItem("user", JSON.stringify(user));
 
-        // 各単語にユーザーIDを紐付けたデータを作成
+        // Step 4: 各単語にユーザーIDを紐付けたデータを作成
         const userWords = wordsData.map((word) => ({
           user_id: user.id,
-          word_id: word.id,
+          ...word,
         }));
 
-        // `user_words` テーブルにデータを挿入または更新
-        const { data: userWordsData, error: userWordsError } = await supabase
-          .from("user_words")
-          .upsert(userWords, { onConflict: "user_id, word_id" })
-          .select();
+        // Step 5: ローカルストレージから既存のデータを取得
+        const storedData = localStorage.getItem(`data_${user.id}`);
+        let existingData: UserWords[] = [];
+        if (storedData) {
+          existingData = JSON.parse(storedData);
 
-        if (userWordsError) {
-          console.error(
-            "Error inserting/updating user words:",
-            userWordsError.message
+          // Step 6: 既存データに含まれない新しい単語を抽出
+          const newWords = userWords.filter(
+            (word) =>
+              !existingData.some((existingWord) => existingWord.id === word.id)
           );
+
+          // Step 7: 新しい単語が存在する場合にローカルストレージを更新
+          if (newWords.length > 0) {
+            const newData = [...existingData, ...newWords];
+
+            try {
+              localStorage.setItem(`data_${user.id}`, JSON.stringify(newData));
+              console.log(
+                `${newWords.length} new data have been added to localStorage for user ${user.id}.`
+              );
+            } catch (error) {
+              console.error("Error writing new data to localStorage:", error);
+            }
+          }
         } else {
-          console.log(
-            "User words inserted/updated successfully.",
-            userWordsData
-          );
-
-          // 取得したデータを次の処理に渡す
-          combineData(wordsData, userWordsData);
+          // Step 8: ローカルストレージにデータがない場合、全データを保存
+          try {
+            localStorage.setItem(`data_${user.id}`, JSON.stringify(userWords));
+            console.log(
+              `${userWords.length} Data for user ${user.id} has been successfully saved to localStorage.`
+            );
+          } catch (error) {
+            console.error("Error writing to localStorage:", error);
+          }
         }
+
+        router.push("/wordQuiz");
       }
     };
 
-    // 非同期関数を呼び出し、終了後に遷移
-    const loadData = async () => {
-      await getUserWords();
-      // データ処理が終わったらクイズ画面へ遷移
-      router.push("/wordQuiz");
-    };
+    saveDataToLocalStorage();
+  }, [router]); // コンポーネントの初回レンダリング後に実行される
 
-    loadData(); // 非同期処理を呼び出す
-  }, [router]);
-
-  // ユーザーデータとワードデータを合体
-  const combineData = (
-    wordsData: WordsData[],
-    userWordsData: UserWordsData[]
-  ) => {
-    // wordsListDataをマッピング（word_idをキーとする辞書を作成）
-    const wordsMap = new Map(
-      wordsData.map((item) => [
-        item.id,
-        { word: item.word, meaning: item.meaning },
-      ])
-    );
-
-    // dataにtermとmeaningを結合
-    const data = userWordsData.map((item) => {
-      const wordInfo = wordsMap.get(item.word_id);
-      return {
-        ...item,
-        word: wordInfo?.word || "Unknown Term",
-        meaning: wordInfo?.meaning || "Unknown Meaning",
-      };
-    });
-
-    // 取得したデータをセッションに保存する
-    sessionStorage.setItem("data", JSON.stringify(data));
-  };
-
-  return <div>Loading...</div>;
+  return <div>Loading...</div>; // ローディング画面
 };
 
 export default Loading;

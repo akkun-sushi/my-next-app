@@ -2,199 +2,64 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { CombinedData, MultipleData } from "../types";
+import { MultipleData, UserWords } from "../types";
 import { supabase } from "../supabase";
 import { useRouter } from "next/navigation";
-import SaveMultipleData from "../components/LearnWord/SaveMultipleData";
+import {
+  GetAllData,
+  GetMultipleData,
+} from "../components/LearnWord/ProcessData";
 
 const WordQuiz = () => {
-  const [firstData, setFirstData] = useState<CombinedData>();
-  const [wordLimit, setWordLimit] = useState(30); // 初期値を10に設定
-  const [language, setlanguage] = useState("en-US"); // デフォルトを英語に設定
-  const [dataCount, setDataCount] = useState<number[]>([]); // [新規単語数, 復習日単語数, 勉強済み単語数]
-  const [clicked, setClicked] = useState(false);
-  const [displayNew, setDisplayNew] = useState<boolean>(false);
-
-  const [sessionData, setSessionData] = useState<{
-    data: CombinedData[];
-    todayLearningData: CombinedData[];
-    unlearnedData: CombinedData[];
-    upcomingReviewData: CombinedData[];
-  } | null>(null);
+  const [allData, setAllData] = useState<UserWords[] | null>(null);
+  const [multipleData, setMultipleData] = useState<MultipleData | null>(null);
+  const [firstData, setFirstData] = useState<UserWords | null>(null);
+  const [wordLimit, setWordLimit] = useState<number>(0); // 初期単語数
+  const [language, setLanguage] = useState<string>(""); // 言語
+  const [dataCount, setDataCount] = useState<number[]>([]); // 単語の種類ごとのカウント
+  const [clicked, setClicked] = useState(false); // カードがクリックされたか
+  const [displayNew, setDisplayNew] = useState(false); // 新規単語表示フラグ
 
   const router = useRouter();
 
+  //初期設定
   useEffect(() => {
-    SaveMultipleData();
-
-    // 初回レンダリング時にsessionStorageからデータを取得
-    const storedData = sessionStorage.getItem("data");
-    const storedMultipleData = sessionStorage.getItem("multipleData");
-
-    if (storedData && storedMultipleData) {
-      const data: CombinedData[] = JSON.parse(storedData);
-      const multipleData: MultipleData = JSON.parse(storedMultipleData);
-
-      // データを結合
-      const combinedData = {
-        data: [...data],
-        todayLearningData: [...multipleData.learning],
-        unlearnedData: [...multipleData.unlearn],
-        upcomingReviewData: [...multipleData.review],
-      };
-
-      console.log("sessionData:", combinedData);
-      setSessionData(combinedData);
-    }
-
-    const storedWordLimit = sessionStorage.getItem("wordLimit");
-    if (storedWordLimit) setWordLimit(Number(storedWordLimit));
-
-    const storedLanguage = sessionStorage.getItem("language");
-    if (storedLanguage) setlanguage(storedLanguage);
+    setAllData(GetAllData() || null); // ローカルストレージからデータを取得
+    setWordLimit(Number(sessionStorage.getItem("wordLimit") || 30)); // 単語数設定
+    setLanguage(sessionStorage.getItem("language") || "en-US"); // 言語設定
   }, []);
 
+  // 単語リストの更新
   useEffect(() => {
-    if (sessionData) {
-      const all = sessionData.data;
-      const unlearned = sessionData.unlearnedData;
-      const learning = sessionData.todayLearningData;
-      const review = sessionData.upcomingReviewData;
+    if (allData) setMultipleData(GetMultipleData(wordLimit) || null);
+  }, [wordLimit, allData]);
 
+  //統計データの登録、最初に表示される単語の設定、新規単語の判定
+  useEffect(() => {
+    // データが揃ったら情報を更新
+    if (allData && multipleData) {
+      const { unlearn, learning, review, limit } = multipleData;
+
+      //統計データ
       setDataCount([
-        unlearned.length,
+        unlearn.length,
         review.length,
-        all.length - unlearned.length,
+        allData.length - unlearn.length,
       ]);
 
-      // 既に `learningData` にあるデータ数を差し引いた残りのデータを追加
-      const remainingLimit = Math.max(wordLimit - learning.length, 0);
+      // learningDataの長さがwordLimit以上であれば、isFinishをtrueに設定
+      const isFinish = learning.length >= wordLimit;
 
-      // reviewData から先に追加
-      const limitedData = review.slice(0, remainingLimit);
+      // isFinishがtrueの場合はlearningData[0]を、falseの場合はlimit[0]をfirstDataに設定
+      setFirstData(isFinish ? learning[0] : limit[0]);
 
-      // もし reviewData が remainingLimit の数に満たない場合、newData から追加
-      if (limitedData.length < remainingLimit) {
-        const additionalLimit = remainingLimit - limitedData.length;
-        const additionalData = unlearned.slice(0, additionalLimit);
-        limitedData.push(...additionalData); // 残りのデータを追加
-      }
-
-      // learningDataの長さがwordLimit以上、またはdataが空であれば、isFinishをtrueに設定
-      const isFinish = learning.length >= wordLimit || all.length === 0;
-
-      // isFinishがtrueの場合はlearningData[0]を、falseの場合はdata[0]をfirstDataに設定
-      setFirstData(isFinish ? learning[0] : limitedData[0]);
-
-      // firstDataがnewDataの中に含まれる場合、newDisplayをtrueに設定
-      const isNewData = unlearned.some(
-        (item) => item.word_id === firstData?.word_id
-      );
-      setDisplayNew(isNewData);
+      // 新規データの表示判定
+      setDisplayNew(unlearn.some((item) => item.id === firstData?.id));
 
       // sessionStorageの"finish"にisFinishの値に応じてtrueまたはfalseをセット
       sessionStorage.setItem("finish", isFinish ? "true" : "false");
-
-      sessionStorage.setItem("limitedData", JSON.stringify(limitedData));
     }
-  }, [sessionData, wordLimit, firstData]);
-
-  /*
-  useEffect(() => {
-    const getData = async () => {
-      const { data } = await supabase.from("wordsList").select("*");
-      if (data) {
-        const today = GetJapanDate();
-
-        const { data: todayLearning, error } = await supabase
-          .from("wordsList") // テーブル名
-          .select("*") // 取得するカラム（`*` は全カラム）
-          .gte("learned_at", today);
-
-        if (error) {
-          console.error("Error fetching users:", error);
-          return;
-        }
-
-        setlearningData(todayLearning); // 今日の学習データをセット
-
-        const newData: Data[] = [];
-        const reviewData: Data[] = [];
-
-        data.forEach((item) => {
-          if (item.learned_at === null) {
-            newData.push(item); // learned_at が null の場合 newData に追加
-          } else {
-            const learnedAt = new Date(item.learned_at);
-            const reviewedAt = new Date(item.reviewed_at);
-
-            // `learned_at` と `reviewed_at` の日数差を計算
-            const learnedToReviewedDiff = Math.floor(
-              (reviewedAt.getTime() - learnedAt.getTime()) /
-                (1000 * 60 * 60 * 24)
-            );
-
-            // `learned_at` と `today` の日数差を計算
-            const learnedToTodayDiff = Math.floor(
-              (new Date(today).getTime() - learnedAt.getTime()) /
-                (1000 * 60 * 60 * 24)
-            );
-
-            // `learned_to_today_diff` が `learned_to_reviewed_diff` より大きければ、復習日を設定
-            if (learnedToTodayDiff >= learnedToReviewedDiff) {
-              reviewData.push(item); // learned_at が null でない場合 reviewData に追加
-            }
-          }
-        });
-
-        // `reviewed_at` が古い日順にソート
-        reviewData.sort((a, b) => {
-          const dateA = new Date(a.reviewed_at);
-          const dateB = new Date(b.reviewed_at);
-          return dateA.getTime() - dateB.getTime(); // 日付が古い順に並べる
-        });
-
-        
-         // limitedData の中から newData のみを抽出
-      const extractedNewData = limitedData.filter((item) =>
-        newData.some((newItem) => newItem.id === item.id)
-      );
-
-      setNewData(extractedNewData);
-      
-      }
-    };
-    getData(); // データ取得関数を実行
-  }, [wordLimit, language]);
-
-  //　sessionStorageの管理
-  useEffect(() => {
-    // learningDataの長さがwordLimit以上、またはdataが空であれば、isFinishをtrueに設定
-    const isFinish = learningData.length >= wordLimit || data.length === 0;
-
-    // isFinishがtrueの場合はlearningData[0]を、falseの場合はdata[0]をfirstDataに設定
-
-    // sessionStorageの"finish"にisFinishの値に応じてtrueまたはfalseをセット
-    sessionStorage.setItem("finish", isFinish ? "true" : "false");
-
-    sessionStorage.setItem("data", JSON.stringify(data));
-    sessionStorage.setItem("newData", JSON.stringify(newData));
-  }, [data, newData, learningData, wordLimit]);
-
-
-  //　newを表示
-  useEffect(() => {
-    console.log(firstData);
-    // firstDataがnewDataの中に含まれる場合、newDisplayをtrueに設定
-    if (sessionData) {
-      const isNewData = sessionData.unlearnedData.some(
-        (item) => item.word_id === firstData?.word_id
-      );
-      console.log(isNewData);
-      setDisplayNew(isNewData);
-    }
-  }, [firstData]);
-  */
+  }, [allData, multipleData, firstData, wordLimit]);
 
   return (
     <main className="flex flex-col items-center fullscreen w-screen h-screen bg-blue-200 py-8">
@@ -250,7 +115,7 @@ const WordQuiz = () => {
             value={language}
             onChange={(e) => {
               const language = e.target.value;
-              setlanguage(language);
+              setLanguage(language);
               sessionStorage.setItem("language", language);
             }}
             className="text-lg md:text-xl font-bold bg-gray-200 px-4 py-2 rounded-md"
@@ -274,7 +139,7 @@ const WordQuiz = () => {
           {/* カード中央の内容部分 */}
           <div className="h-4/5 flex items-center justify-center">
             <h1 className="text-4xl md:text-6xl font-bold break-words">
-              {clicked ? firstData?.meaning : firstData?.word}
+              {clicked ? firstData?.meaning : firstData?.term}
             </h1>
           </div>
 

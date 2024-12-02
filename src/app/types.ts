@@ -9,33 +9,18 @@ export interface Data {
   reviewed_at: string;
 }
 
-export interface WordsData {
-  id: string;
-  word: string;
-  meaning: string;
-}
-
-export interface UserWordsData {
+export interface UserWords extends Data {
   user_id: string;
-  word_id: string;
-  learned_at: string;
-  reviewed_at: string;
-}
-
-export interface CombinedData {
-  user_id: string;
-  word_id: string;
-  word: string;
-  meaning: string;
-  learned_at: string;
-  reviewed_at: string;
 }
 
 export interface MultipleData {
-  learning: CombinedData[];
-  unlearn: CombinedData[];
-  review: CombinedData[];
+  learning: UserWords[];
+  unlearn: UserWords[];
+  review: UserWords[];
+  limit: UserWords[];
 }
+
+
 
 export type SortType =
   | "CREATION_ASC"

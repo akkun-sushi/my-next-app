@@ -32,14 +32,15 @@ const Home = () => {
         //ユーザーがサインインして、セッションが存在する場合
         if (session) {
           setSession(session);
-          console.log("event: ", event, "session: ", session);
-          router.push("/loading");
+          console.log("Event:", event);
+
           const { user } = session;
           //データベースからサインインしたidと一致するレコードを取得
           const { data: firstSignIn } = await supabase
             .from("users")
             .select("*")
             .eq("id", user.id);
+
           //初回サインイン（＝サインアップ）時はデータベースにidとemailを記録
           if (firstSignIn?.length === 0) {
             const { error } = await supabase
@@ -54,6 +55,7 @@ const Home = () => {
               console.log("User inserted into database successfully!");
             }
           }
+          router.push("/loading");
         }
       }
     );
@@ -61,7 +63,7 @@ const Home = () => {
       //コンポーネントがアンマウントされる際に、リスナーを解除
       authListener?.subscription.unsubscribe();
     };
-  }, []);
+  }, [router]);
 
   if (session === null) {
     return (
@@ -147,25 +149,3 @@ const Home = () => {
 };
 
 export default Home;
-
-//ページ遷移後に再認証が必要かも
-/*
-useEffect(() => {
-  const { data: authListener } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (session) {
-        setSession(session);
-        console.log("event: ", event, "session: ", session);
-        router.push("/wordQuiz");
-      } else {
-        // セッションが切れている場合は再認証を促す
-        console.log("Session expired, prompting for sign-in...");
-        handleSignIn();
-      }
-    }
-  );
-  return () => {
-    authListener?.subscription.unsubscribe();
-  };
-}, []);
-*/
