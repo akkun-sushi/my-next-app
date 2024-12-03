@@ -89,7 +89,17 @@ const Loading = () => {
     saveDataToLocalStorage();
   }, [router]); // コンポーネントの初回レンダリング後に実行される
 
-  return <div>Loading...</div>; // ローディング画面
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-700">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-white border-opacity-50"></div>
+
+        <p className="text-white text-xl font-bold animate-pulse">
+          読み込み中...
+        </p>
+      </div>
+    </div>
+  ); // ローディング画面
 };
 
 export default Loading;
