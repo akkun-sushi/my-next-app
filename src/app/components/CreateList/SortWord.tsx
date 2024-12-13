@@ -1,5 +1,5 @@
-import { PropsForComponent, SortType } from "@/app/types";
-import { supabase } from "@/app/supabase";
+import { PropsForComponent, SortType } from "@/app/data/types";
+import { supabase } from "@/app/data/supabase/client";
 import React, { ChangeEvent, useEffect } from "react";
 
 const SortWord = (props: PropsForComponent) => {

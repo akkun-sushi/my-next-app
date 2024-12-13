@@ -1,8 +1,8 @@
 "use client";
 
 import React, { FormEvent, useRef, useState } from "react";
-import { PropsForComponent } from "@/app/types";
-import { supabase } from "@/app/supabase";
+import { PropsForComponent } from "@/app/data/types";
+import { supabase } from "@/app/data/supabase/client";
 
 const AddWord = (props: PropsForComponent) => {
   const [term, setTerm] = useState("");

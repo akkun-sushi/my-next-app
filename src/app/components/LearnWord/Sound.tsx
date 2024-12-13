@@ -1,11 +1,6 @@
 function SpeakerSetting(text: string, onEndCallback?: () => void) {
-  const language = sessionStorage.getItem("language");
   const utterance = new SpeechSynthesisUtterance(text);
-
-  // 設定された言語を設定
-  if (language !== null) {
-    utterance.lang = language;
-  }
+  utterance.lang = "es-ES";
 
   // onend コールバックが渡されていれば、読み上げ終了後にその関数を呼ぶ
   if (onEndCallback) {
@@ -40,4 +35,4 @@ const PlayFailureSound = () => {
   }, 5000); // 5000ms = 5秒
 };
 
-export {SpeakerSetting, PlaySuccessSound, PlayFailureSound}
+export { SpeakerSetting, PlaySuccessSound, PlayFailureSound };

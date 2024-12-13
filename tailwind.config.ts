@@ -8,9 +8,21 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: "425px",
+      },
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+      },
+      animation: {
+        fadeIn: "fadeIn 1.5s ease-in-out", // 1秒でフェードインするアニメーション
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
       },
     },
   },

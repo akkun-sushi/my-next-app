@@ -1,7 +1,8 @@
+/*
 "use client";
 
 import React, { useState } from "react";
-import { Data, IsDeleting, IsEditing, SortType } from "@/app/types";
+import { Data,IsDeleting, IsEditing, SortType } from "@/app/data/types";
 import Link from "next/link";
 import AddWord from "@/app/components/CreateList/AddWords";
 import SortWord from "@/app/components/CreateList/SortWord";
@@ -66,3 +67,16 @@ const CreateList = () => {
 };
 
 export default CreateList;
+*/
+
+import React from 'react'
+
+const CreateList = () => {
+  return (
+    <div>
+      
+    </div>
+  )
+}
+
+export default CreateList

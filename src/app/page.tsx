@@ -1,58 +1,59 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { supabase } from "./supabase";
-import { useEffect, useState } from "react";
-import { Session } from "@supabase/supabase-js";
-import GoogleSignIn from "./components/SignIn/GoogleSignIn";
+import { useEffect } from "react";
+import { Words, WordWithDate } from "./data/types";
+import { getAllData } from "./data/supabase/queries";
 
 const Home = () => {
-  const [session, setSession] = useState<Session | null>(null);
   const router = useRouter();
-
-  //認証状態の変更を監視するリスナー設定
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        //ユーザーがサインインして、セッションが存在する場合
-        if (session) {
-          setSession(session);
-          console.log("Event:", event);
+    const initialize = async () => {
+      // Supabaseから全単語のデータを取得
+      const wordsData: Words[] = await getAllData("español");
 
-          const { user } = session;
-          //データベースからサインインしたidと一致するレコードを取得
-          const { data: firstSignIn } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", user.id);
+      // LocalStorageから既存のデータを取得
+      const existingData: WordWithDate[] = JSON.parse(
+        localStorage.getItem("español") || "[]"
+      );
 
-          //初回サインイン（＝サインアップ）時はデータベースにidとemailを記録
-          if (firstSignIn?.length === 0) {
-            const { error } = await supabase
-              .from("users")
-              .insert([{ id: user.id, email: user.email }]);
-            if (error) {
-              console.error(
-                "Error inserting user into database:",
-                error.message
-              );
-            } else {
-              console.log("User inserted into database successfully!");
-            }
-          }
-          router.push("/loading");
-        }
-      }
-    );
-    return () => {
-      //コンポーネントがアンマウントされる際に、リスナーを解除
-      authListener?.subscription.unsubscribe();
+      // 新しい単語データを生成
+      const newWordsData: WordWithDate[] = wordsData.map((word) => ({
+        ...word,
+        learnDate: "",
+        reviewDate: "",
+        count: { flag: false, correct: 0, wrong: 0 },
+      }));
+
+      // 重複を確認し、新しいデータのみを追加
+      const updatedData: WordWithDate[] = [
+        ...existingData,
+        ...newWordsData.filter(
+          (newWord) =>
+            !existingData.some((existingWord) => existingWord.id === newWord.id) // idで重複確認
+        ),
+      ];
+
+      // 更新されたデータをLocalStorageに保存
+      localStorage.setItem("español", JSON.stringify(updatedData));
+
+      localStorage.setItem(
+        "reviewMode",
+        JSON.stringify({
+          state: { finish: false, review: false, newLearning: false },
+          random: false,
+          type: "all",
+          count: 0,
+        })
+      );
+
+      localStorage.setItem("index", "0");
+
+      router.push("/wordQuiz");
     };
-  }, [router]);
 
-  if (session === null) {
-    return <GoogleSignIn />;
-  }
+    initialize();
+  }, [router]);
 };
 
 export default Home;

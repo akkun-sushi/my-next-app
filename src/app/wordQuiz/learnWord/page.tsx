@@ -1,53 +1,92 @@
 "use client"; // Next.jsでクライアントサイドの処理を有効にする宣言
 
 // 必要なモジュールやコンポーネントをインポート
-import { UserWords } from "@/app/types"; // データ型の定義
+import {
+  MultipleData,
+  ReviewMode,
+  Update,
+  WordWithDate,
+} from "@/app/data/types"; // データ型の定義
 import Link from "next/link"; // ページ間リンク用
 import React, { useEffect, useState } from "react"; // Reactフックを使用
 import { GiSpeaker } from "react-icons/gi";
-
 import { GetJapanDate } from "@/app/components/LearnWord/GetJapanTime";
-import {
-  GetAllData,
-  GetMultipleData,
-  UpdateData,
-} from "@/app/components/LearnWord/ProcessData";
+import ProcessData from "@/app/components/LearnWord/ProcessData";
 import {
   PlayFailureSound,
   PlaySuccessSound,
   SpeakerSetting,
 } from "@/app/components/LearnWord/Sound";
+import {
+  getDataFromLocal,
+  saveDataToLocal,
+} from "@/app/data/localStorage/local";
+import { RxCross2 } from "react-icons/rx";
+import Review from "@/app/components/LearnWord/Review/Review";
 
 const LearnWord = () => {
   // ステートの定義
-  const [data, setData] = useState<UserWords[]>([]); // 単語データを保持
-  const [newData, setNewData] = useState<UserWords[]>([]);
+  const [data, setData] = useState<WordWithDate[]>([]);
+  const [newData, setNewData] = useState<WordWithDate[]>([]);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>({
+    state: { finish: false, review: false, newLearning: false },
+    random: false,
+    type: "all",
+    count: 0,
+  });
+  const [index, setIndex] = useState<number>(0);
 
-  const [finish, setfinish] = useState(false);
-  const [review, setReview] = useState<boolean>(false);
-
-  const [index, setIndex] = useState<number>(0); // 現在の単語のインデックス
   const [card, setCard] = useState<string[]>([]); // フラッシュカードの[単語, 意味, 復習日]
   const [displayNew, setDisplayNew] = useState<boolean>(false);
   const [reverse, setReverse] = useState<boolean>(false); // 表示を反転するフラグ
   const [speakerIsClicked, setSpeakerIsClicked] = useState<boolean>(false);
   const [cardColor, setCardColor] = useState<string>(""); // 「わかった」「わからない」ボタンが押されたかどうかを管理する状態
-  const [isRandom, setIsRandom] = useState(false);
   const [isAlwaysSpeak, setIsAlwaysSpeak] = useState(false);
+
   const today = GetJapanDate(); // 日本時間（年月日）を取得
 
-  useEffect(() => {
-    // セッションストレージから各種データを取得
+  // データ初期化関数
+  const initializeData = () => {
+    const storedData = localStorage.getItem("data");
     const storedMultipleData = sessionStorage.getItem("multipleData");
     if (storedMultipleData) {
-      const multipleData = JSON.parse(storedMultipleData);
-      setData(multipleData.limit);
+      const multipleData: MultipleData = JSON.parse(storedMultipleData);
+      if (storedData) {
+        setData(JSON.parse(storedData));
+      } else {
+        saveDataToLocal("data", multipleData.limit);
+        setData(multipleData.limit);
+      }
+    }
+  };
+
+  const initializeNewData = () => {
+    const storedMultipleData = sessionStorage.getItem("multipleData");
+    if (storedMultipleData) {
+      const multipleData: MultipleData = JSON.parse(storedMultipleData);
       setNewData(multipleData.unlearn);
     }
+  };
 
-    const storedFinish = sessionStorage.getItem("finish");
-    if (storedFinish === "true") setfinish(true);
-  }, []);
+  const initializeReviewMode = () => {
+    const storedReviewMode = localStorage.getItem("reviewMode");
+    if (storedReviewMode) {
+      setReviewMode(JSON.parse(storedReviewMode));
+    }
+  };
+
+  const initializeIndex = () => {
+    const storedIndex = localStorage.getItem("index");
+    setIndex(storedIndex ? Number(storedIndex) : 0);
+  };
+
+  // useEffectで初期化処理を実行
+  useEffect(() => {
+    initializeData();
+    initializeNewData();
+    initializeReviewMode();
+    initializeIndex();
+  }, []); // 初回レンダリング時のみ実行
 
   // 現在の単語とその意味をステートに設定
   useEffect(() => {
@@ -62,11 +101,11 @@ const LearnWord = () => {
     }
 
     // Dateオブジェクトに変換
-    const rawDate = new Date(data[index]?.reviewed_at);
+    const rawDate = new Date(data[index]?.reviewDate);
 
     // フォーマットを変更して "2024/2/12" 形式に
     const formattedDate = rawDate.toLocaleDateString("ja-JP"); // 日本のローカルフォーマット
-    setCard([data[index]?.term, data[index]?.meaning, formattedDate]); // 現在のインデックスに対応する単語
+    setCard([data[index]?.word, data[index]?.meaning, formattedDate]); // 現在のインデックスに対応する単語
   }, [newData, data, index]);
 
   // 共通処理を行う関数
@@ -80,43 +119,62 @@ const LearnWord = () => {
 
     setTimeout(async () => {
       if (data) {
-        if (!review) {
-          const update: { learned_at: string; reviewed_at: string } = {
-            learned_at: today,
-            reviewed_at: "",
+        if (!reviewMode.state.review) {
+          const update: Update = {
+            learnDate: today,
+            reviewDate: "",
+            count: {
+              flag: false,
+              correct: data[index].count.correct,
+              wrong: data[index].count.wrong,
+            },
           };
 
+          if (isCorrect) {
+            update.count.flag = true;
+            update.count.correct += 1;
+          } else {
+            update.count.flag = false;
+            update.count.wrong += +1;
+          }
+
           const reviewedAt = isCorrect
-            ? data[index].reviewed_at
+            ? data[index].reviewDate
               ? calculateNextReviewDate(
-                  data[index].learned_at,
-                  data[index].reviewed_at
+                  data[index].learnDate,
+                  data[index].reviewDate
                 )
               : new Date(today).getTime() + 1 * 24 * 60 * 60 * 1000
             : new Date(today).getTime() + 1 * 24 * 60 * 60 * 1000;
 
-          update.reviewed_at = new Date(reviewedAt).toISOString().split("T")[0];
+          update.reviewDate = new Date(reviewedAt).toISOString().split("T")[0];
 
-          const allData = GetAllData();
+          const allData: WordWithDate[] = getDataFromLocal("español");
           if (!allData) return;
 
           // 更新したい単語を更新
-          const updateData: UserWords[] = allData.map((item) =>
+          const updateData: WordWithDate[] = allData.map((item) =>
             item.id === data[index].id
               ? {
                   ...item,
-                  learned_at: update.learned_at,
-                  reviewed_at: update.reviewed_at,
+                  learnDate: update.learnDate,
+                  reviewDate: update.reviewDate,
+                  count: {
+                    flag: update.count.flag,
+                    correct: update.count.correct,
+                    wrong: update.count.wrong,
+                  },
                 }
               : item
           );
 
-          UpdateData(updateData); // 更新を保存
+          saveDataToLocal("español", updateData);
         }
 
-        if (isAlwaysSpeak) SpeakerSetting(data[index + 1]?.term);
+        if (isAlwaysSpeak) SpeakerSetting(data[index + 1]?.word);
 
         if (index < data.length - 1) {
+          localStorage.setItem("index", (index + 1).toString());
           setIndex((prevIndex) => prevIndex + 1);
         } else {
           finalizeReview(); // 学習完了処理
@@ -147,31 +205,105 @@ const LearnWord = () => {
 
   // 学習完了時の処理
   const finalizeReview = () => {
-    setIndex(0);
-    setReview(false);
-    setData([]);
-    alert("すべて勉強しました!");
-    if (!review) {
-      setfinish(true);
-      sessionStorage.setItem("finish", "true");
+    if (reviewMode.state.newLearning) {
+      saveReviewMode("newLearning", false);
     }
+
+    saveReviewMode("review", false);
+
+    if (!reviewMode.state.review) {
+      console.log("hey");
+      saveReviewMode("finish", true);
+    }
+
+    if (reviewMode.state.review) {
+      saveReviewMode("count", reviewMode.count + 1);
+    }
+
+    localStorage.setItem("index", "0");
+    setIndex(0);
+
+    saveData([]);
+    alert("すべて勉強しました!");
   };
 
-  const handleReview = async () => {
-    const multipleData = GetMultipleData();
-    if (multipleData) {
-      const learning = multipleData.learning;
-      // ランダムに並び替え
-      if (isRandom) {
-        learning.sort(() => Math.random() - 0.5);
-      }
-      setData(learning);
+  function saveReviewMode(
+    key: keyof ReviewMode["state"] | "random" | "type" | "count",
+    value: boolean | string | number
+  ) {
+    const storedReviewMode = localStorage.getItem("reviewMode");
+
+    const currentValue: ReviewMode =
+      storedReviewMode && key !== "newLearning"
+        ? JSON.parse(storedReviewMode)
+        : {
+            state: { finish: false, review: false, newLearning: false },
+            random: false,
+            type: "all",
+            count: 0,
+          };
+
+    const updatedValue = { ...currentValue };
+
+    if (key === "finish" || key === "review" || key === "newLearning") {
+      updatedValue.state[key] = value as boolean;
+    } else if (key == "random") {
+      updatedValue.random = value as boolean;
+    } else if (key == "type") {
+      updatedValue.type = value as "all" | "new" | "wrong";
+    } else if (key == "count") {
+      updatedValue.count = value as number;
+    }
+
+    if (key === "newLearning") {
+      const multipleData = ProcessData(true);
+      sessionStorage.setItem("multipleData", JSON.stringify(multipleData));
+      saveData(multipleData.limit);
       setNewData(multipleData.unlearn);
     }
 
+    localStorage.setItem("reviewMode", JSON.stringify(updatedValue));
+    setReviewMode(updatedValue);
+  }
+
+  function saveData(data: WordWithDate[]) {
+    saveDataToLocal("data", data);
+    setData(data);
+  }
+
+  const handleReview = async () => {
+    const multipleData = ProcessData();
+
+    const learning = multipleData.learning;
+    // ランダムに並び替え
+    if (reviewMode.random) {
+      learning.sort(() => Math.random() - 0.5);
+    }
+
+    if (reviewMode.type === "all") {
+      saveData(learning);
+    } else if (reviewMode.type === "new") {
+      const unlearn = learning.filter(
+        ({ count: { correct, wrong } }) =>
+          (correct === 1 && wrong === 0) || (correct === 0 && wrong === 1)
+      );
+      if (unlearn.length === 0) {
+        alert("新規単語がありません。");
+        return;
+      } else saveData(unlearn);
+    } else {
+      const wrong = learning.filter((item) => !item.count.flag);
+      if (wrong.length === 0) {
+        alert("間違えた単語がありません。");
+        return;
+      } else saveData(wrong);
+    }
+
+    setNewData(multipleData.unlearn);
+
     if (isAlwaysSpeak) handleSpeak();
 
-    setReview(true);
+    saveReviewMode("review", true);
   };
 
   // 読み上げを開始する関数
@@ -185,7 +317,11 @@ const LearnWord = () => {
 
   // キーボード操作によるイベントハンドリング
   const handleKeyDown = (e: KeyboardEvent) => {
-    if ((data.length > 0 && !finish) || review) {
+    if (
+      data.length > 0 ||
+      !reviewMode.state.finish ||
+      reviewMode.state.review
+    ) {
       switch (e.key) {
         case " ": // スペースキー
           // スペースキーが押された時に表示反転フラグ（reverse）を切り替え
@@ -236,62 +372,39 @@ const LearnWord = () => {
 
   useEffect(() => {
     if (isAlwaysSpeak) {
-      SpeakerSetting(data[0]?.term);
+      SpeakerSetting(data[0]?.word);
     }
-  }, [review, isAlwaysSpeak, data]); // isAlwaysSpeak と data を依存配列に追加
+  }, [reviewMode, isAlwaysSpeak, data]); // isAlwaysSpeak と data を依存配列に追加
 
   return (
-    <main className="flex flex-col items-center w-screen min-h-screen bg-blue-100 py-8 px-4">
-      {/* 上部セクション */}
-      <section className="flex w-4/5 items-center justify-between px-4">
-        {/* 戻るボタン */}
-        <Link
-          href="/wordQuiz"
-          className="text-xl sm:text-2xl md:text-3xl font-bold text-black hover:text-red-500 transition-colors"
-        >
-          戻る
-        </Link>
-        {/* ページタイトル */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mt-8 text-black text-center mx-auto">
-          学習
-        </h1>
-      </section>
-
-      {/* メインコンテンツ */}
-      <section className="flex flex-col items-center justify-center w-full h-full mt-5 md:mt-10">
-        {/* 今日のタスクが終わった場合 */}
-        {data.length === 0 && !review && finish ? (
-          <div className="flex flex-col items-center">
-            {/* 今日のタスクが終わったことを知らせるテキスト */}
-            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-center mb-16 mt-12 md:mb-20 md:mt-24 text-red-500">
-              今日のタスクは終わりました！
-              <br />
-              お疲れ様です！
-            </h2>
-
-            {/* ランダムボタン */}
-            <button
-              onClick={() => setIsRandom((prev) => !prev)}
-              className={`px-6 py-3 md:px-10 md:py-5 mb-8 text-white text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold rounded-xl shadow-md transition-colors duration-300 ${
-                isRandom
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-gray-500 hover:bg-gray-600"
-              }`}
-            >
-              {isRandom ? "ランダムオン" : "ランダムオフ"}
-            </button>
-
-            {/* 復習ボタン */}
-            <button
-              onClick={handleReview}
-              className="px-6 py-3 md:px-10 md:py-5 bg-blue-500 text-white text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold rounded-xl shadow-md hover:bg-blue-600 transition-colors"
-            >
-              復習しますか？
-            </button>
-          </div>
+    <main className="w-screen h-screen bg-blue-100">
+      {
+        data.length === 0 &&
+        !reviewMode.state.review &&
+        reviewMode.state.finish ? (
+          <Review
+            reviewMode={reviewMode}
+            saveReviewMode={saveReviewMode}
+            handleReview={handleReview}
+          />
         ) : data.length > 0 ? (
           // 単語カードとボタンセクション
-          <>
+          <div className="flex flex-col items-center justify-center">
+            {/* 上部セクション */}
+            <section className="flex w-4/5 items-center justify-between px-4">
+              {/* 戻るボタン */}
+              <Link
+                href="/wordQuiz"
+                className="text-xl sm:text-4xl md:text-5xl font-bold text-black hover:text-red-500 transition-colors"
+              >
+                <RxCross2 />
+              </Link>
+              {/* ページタイトル */}
+              <h1 className="text-3xl sm:text-4xl md:text-3xl lg:text-4xl font-bold mt-8 text-black text-center mx-auto mb-10">
+                例文が入る予定
+              </h1>
+            </section>
+
             <div
               onClick={() => {
                 // スピーカーがクリックされていない場合のみリバース処理を行う
@@ -307,7 +420,13 @@ const LearnWord = () => {
                   : "bg-white"
               }`}
             >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-center">
+              <h1
+                className={`${
+                  reverse
+                    ? "text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl"
+                    : "text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl"
+                } font-bold text-center`}
+              >
                 {reverse ? card[1] : card[0]}
               </h1>
               {/* New ラベルを左上に表示 */}
@@ -328,7 +447,7 @@ const LearnWord = () => {
                   e.stopPropagation(); // イベントのバブリングを止める
                   handleSpeak(); // 読み上げを開始
                 }}
-                className={`absolute top-4 right-4 text-4xl sm:text-5xl md:text-6xl cursor-pointer transition-all transform ${
+                className={`absolute top-4 right-6 text-4xl sm:text-5xl md:text-6xl cursor-pointer transition-all transform ${
                   speakerIsClicked ? "text-red-500" : "text-black"
                 } hover:text-red-500`}
               >
@@ -340,7 +459,7 @@ const LearnWord = () => {
                   setIsAlwaysSpeak((prev) => !prev);
                   if (!isAlwaysSpeak) handleSpeak();
                 }}
-                className={`absolute top-20 right-4 px-4 py-1 rounded-lg shadow-md text-sm text-white font-bold sm:text-base md:text-lg transition-all ${
+                className={`absolute top-14 right-4 px-4 py-1 rounded-lg shadow-md text-sm text-white font-bold sm:text-base md:text-lg transition-all ${
                   isAlwaysSpeak
                     ? "bg-blue-500 hover:bg-blue-600"
                     : "bg-gray-500 hover:bg-gray-600"
@@ -372,10 +491,9 @@ const LearnWord = () => {
                 わからない
               </button>
             </div>
-          </>
-        ) : // 何も表示しない
-        null}
-      </section>
+          </div>
+        ) : null // 何も表示しない
+      }
     </main>
   );
 };

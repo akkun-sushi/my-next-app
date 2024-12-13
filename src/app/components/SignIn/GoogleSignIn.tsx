@@ -1,4 +1,4 @@
-import { supabase } from "@/app/supabase";
+import { supabase } from "@/app/data/supabase/client";
 import GoogleIcon from "./GoogleIcon";
 //google認証
 const GoogleSignIn = () => {

@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { WordCardProps } from "@/app/types";
-import { supabase } from "@/app/supabase";
+import { WordCardProps } from "@/app/data/types";
+import { supabase } from "@/app/data/supabase/client";
 
 const WordCard = ({
   id,
-  term: initialTerm,
+  word: initialTerm,
   meaning: initialMeaning,
   isEditing,
   setIsEditing,
